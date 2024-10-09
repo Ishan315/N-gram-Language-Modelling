@@ -11,18 +11,36 @@ class NgramLanguageModel:
         self.smoothing_k = 1
 
     def preprocess_text(self, path):
+        """
+        Preprocesses text data by reading a file, cleaning the text, and tokenizing each sentence.
+
+        Args:
+        - path (str): The path to the text file to be preprocessed.
+
+        Returns:
+        - pd.DataFrame: A DataFrame with the original text and tokenized sentences.
+        """
+
+        # Open the file at the given path and read its contents line by line
         with open(path, 'r') as file:
-            lines = file.readlines()
-        # Create a DataFrame from the list of lines
+            lines = file.readlines()  # Read all lines in the file into a list
+
+        # Create a DataFrame from the list of lines, with 'review' as the column name
         df = pd.DataFrame(lines, columns=['review'])
 
-        # Optionally, strip any extra whitespace or newline characters
+        # Strip any extra whitespace or newline characters from each review
         df['review'] = df['review'].str.strip()
+
+        # Convert all text to lowercase to standardize the text
         df["review"] = df["review"].apply(lambda x: x.lower())
+
+        # Add start-of-sentence (<s>) and end-of-sentence (</s>) tags to each review
         df["review"] = df["review"].apply(lambda x: "<s> " + x + " </s>")
+
+        # Tokenize each review by splitting the string into a list of words (tokens)
         df["tokens"] = df["review"].apply(lambda x: x.split(" "))
 
-        return df
+        return df  # Return the DataFrame with processed text
 
     def preprocess_rare_words_unigram(self, unigram_counter):
         unigram_counter["<UNK>"] = 0
@@ -83,7 +101,16 @@ class NgramLanguageModel:
     def train_model(self, train_path):
         train_df = self.preprocess_text(train_path)
         train_unigram_counter, train_bigram_counter = self.create_counters(train_df)
-        return train_unigram_counter, train_bigram_counter
+        train_vocab_size = len(train_unigram_counter.keys())
+
+        train_unigram_probabilities = {key: value / sum(train_unigram_counter.values()) for key, value in train_unigram_counter.items()}
+        train_bigram_probabilities = {key: value / (train_unigram_counter[key[0]])
+                              for key, value in train_bigram_counter.items()}
+
+        train_unigram_perplexity = self.evaluate_perplexity(train_unigram_probabilities, train_vocab_size)
+        train_bigram_perplexity = self.evaluate_perplexity(train_bigram_probabilities, train_vocab_size)
+
+        return train_unigram_counter, train_bigram_counter, train_unigram_perplexity, train_bigram_perplexity
 
     def infer_language_model(self, test_path, train_unigram_counter, train_bigram_counter):
         test_df = self.preprocess_text(test_path)
@@ -134,20 +161,46 @@ class NgramLanguageModel:
         return test_unigram_perplexity, test_bigram_perplexity
 
     def evaluate_perplexity(self, probability_dict, vocab_size):
-        log_sum = 0
+        """
+        Evaluates the perplexity of a language model based on the given probabilities of words.
+
+        Args:
+        - probability_dict (dict): A dictionary where keys are words (or tokens) and values are their corresponding probabilities.
+        - vocab_size (int): The total number of unique words (or tokens) in the vocabulary.
+
+        Returns:
+        - float: The perplexity score, which indicates how well the probability distribution predicts the sample.
+                 A lower perplexity indicates a better model.
+        """
+        log_sum = 0  # Initialize a variable to hold the sum of logarithms of probabilities
+
+        # Loop over all probabilities in the dictionary and compute the sum of their log base 2
         for prob in probability_dict.values():
             log_sum += np.log2(prob)
 
+        # Calculate perplexity using the formula: 2 ** (-log_sum / vocab_size)
+        # This formula is derived from entropy: perplexity = 2^(-entropy)
         return 2 ** (-log_sum / vocab_size)
 
-    def run(self, train_path="./data/train.txt",
+    def run_inference(self, train_path="./data/train.txt",
             test_path="./data/val.txt"):
+
         # train
-        train_unigram_counter, train_bigram_counter = self.train_model(train_path)
+        train_unigram_counter, train_bigram_counter, train_unigram_perplexity, train_bigram_perplexity = (
+            self.train_model(train_path))
+        print("Train Set:")
+        print("Unigram Perplexity: ")
+        print(train_unigram_perplexity)
+        print(" ")
+
+        print("Bigram Perplexity: ")
+        print(train_bigram_perplexity)
+        print(" ")
 
         # evaluate
         unigram_perplexity, bigram_perplexity = (
             self.infer_language_model(test_path, train_unigram_counter, train_bigram_counter))
+        print("Validation Set:")
         print("Unigram Perplexity: ")
         print(unigram_perplexity)
         print(" ")
@@ -158,4 +211,4 @@ class NgramLanguageModel:
 
 if __name__ == '__main__':
     n_gram_lm = NgramLanguageModel()
-    n_gram_lm.run()
+    n_gram_lm.run_inference()
