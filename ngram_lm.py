@@ -13,17 +13,16 @@ def preprocess_text(file_path):
     df['review'] = df['review'].str.strip().str.lower()
     df['review'] = df['review'].apply(lambda x: "<s> " + x + " </s>")
     df['tokens'] = df['review'].apply(lambda x: x.split(" "))
+
     return df
 
-
 def get_vocab(df):
-    return [item for sublist in df['tokens'] for item in sublist]
+    return set([item for sublist in df['tokens'] for item in sublist])
 
 
 # 2. Vocabulary creation functions
 def create_unigram_counter(df, threshold=2):
-    vocab = get_vocab(df)
-    unigram_counter = Counter(vocab)
+    unigram_counter = Counter([item for sublist in df['tokens'] for item in sublist])
     unigram_counter["<UNK>"] = 0
 
     for key, value in unigram_counter.items():
@@ -52,11 +51,15 @@ def create_bigram_vocab(df, unigram_counter, threshold=2):
 
 
 # 4. Probability calculation functions
-def calculate_unigram_probs(unigram_counter, vocab_size, k=0.09):
-    total_count = sum(unigram_counter.values())
-    unigram_probs = {key: (value + k) / (total_count + k * vocab_size)
-                     for key, value in unigram_counter.items()}
-    return unigram_probs
+def calculate_test_unigram_probs(train_unigram_counter, test_unigram_counter, vocab_size, k=0.09):
+    test_unigram_probs = {
+        key:
+            ((train_unigram_counter[key]
+              if key in train_unigram_counter.keys() else train_unigram_counter["<UNK>"]) + k) / (
+                    sum(train_unigram_counter.values()) + k * vocab_size)
+        for key in test_unigram_counter.keys()}
+
+    return test_unigram_probs
 
 
 def calculate_bigram_probs(bigram_counter, unigram_counter, vocab_size, k=0.09):
@@ -66,27 +69,33 @@ def calculate_bigram_probs(bigram_counter, unigram_counter, vocab_size, k=0.09):
 
 
 # 5. Perplexity evaluation function
-def evaluate_perplexity(probs, N):
-    log_sum = np.sum([np.log2(prob) for prob in probs.values()])
-    return 2 ** (-log_sum / N)
+def evaluate_perplexity(probability_dict, test_vocab_size):
+    log_sum = np.sum([np.log2(prob) for prob in probability_dict.values()])
+    return 2 ** (-log_sum / test_vocab_size)
 
 
 # 6. Validation function
-def validate_model(val_df, bigram_counter, unigram_counter, vocab_size, k=0.09):
-    val_vocab = [item for sublist in val_df['tokens'] for item in sublist]
-    val_bigram_vocab = [item for sublist in val_df['bigrams'] for item in sublist]
+def validate_model(test_df, train_unigram_counter, train_bigram_counter, vocab_size, k=0.09):
+    val_vocab = [item for sublist in test_df['tokens'] for item in sublist]
+    val_bigram_vocab = [item for sublist in test_df['bigrams'] for item in sublist]
 
-    val_bigram_probs = {item: ((bigram_counter[item] + k) /
-                               (unigram_counter[item[0]] if item[0] in unigram_counter else unigram_counter["<UNK>"])
-                               + k * vocab_size) for item in val_bigram_vocab}
+    # val_bigram_probs = {item: ((bigram_counter[item] + k) /
+    #                            (unigram_counter[item[0]] if item[0] in unigram_counter else unigram_counter["<UNK>"])
+    #                            + k * vocab_size) for item in val_bigram_vocab}
 
-    val_unigram_counter = Counter(val_vocab)
-    val_unigram_probs = {key: ((unigram_counter.get(key, unigram_counter["<UNK>"]) + k)
-                               / (sum(unigram_counter.values()) + k * vocab_size))
-                         for key in val_unigram_counter.keys()}
 
-    unigram_perplexity = evaluate_perplexity(val_unigram_probs, len(set(val_vocab)))
-    bigram_perplexity = evaluate_perplexity(val_bigram_probs, len(set(val_vocab)))
+
+    test_unigram_counter = Counter(val_vocab)
+    # val_unigram_probs = {key: ((unigram_counter.get(key, unigram_counter["<UNK>"]) + k)
+    #                            / (sum(unigram_counter.values()) + k * vocab_size))
+    #                      for key in val_unigram_counter.keys()}
+
+    test_unigram_probs = calculate_test_unigram_probs(train_unigram_counter, test_unigram_counter,
+                                                     len(train_unigram_counter.keys()))
+
+    unigram_perplexity = evaluate_perplexity(test_unigram_probs, len(set(val_vocab)))
+    # bigram_perplexity = evaluate_perplexity(val_bigram_probs, len(set(val_vocab)))
+    bigram_perplexity = None
     return unigram_perplexity, bigram_perplexity
 
 
@@ -95,9 +104,9 @@ def main():
     # 1. Preprocessing
     df = preprocess_text('../A1_DATASET/train.txt')
     df["bigrams"] = df.apply(lambda x: create_bigram_pairs(x), axis=1)
-
+    vocab = get_vocab(df)
     # 2. Vocabulary creation
-    unigram_counter, vocab = create_unigram_counter(df)
+    unigram_counter = create_unigram_counter(df)
     bigram_vocab = create_bigram_vocab(df, unigram_counter)
 
     # 3. Bigram counting and smoothing

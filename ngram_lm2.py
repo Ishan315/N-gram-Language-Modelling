@@ -109,8 +109,8 @@ class NgramLanguageModel:
 
         return 2 ** (-log_sum / vocab_size)
 
-    def run(self, train_path="/Users/sauravdosi/Documents/MSCS at UTD/Fall 2024/CS 6320 - Natural Language Processing/Assignments/A1/A1_DATASET/train.txt",
-            test_path="/Users/sauravdosi/Documents/MSCS at UTD/Fall 2024/CS 6320 - Natural Language Processing/Assignments/A1/A1_DATASET/val.txt"):
+    def run(self, train_path="./data/train.txt",
+            test_path="./data/val.txt"):
         # train
         train_unigram_counter, train_bigram_counter = self.train_model(train_path)
 
@@ -128,93 +128,3 @@ class NgramLanguageModel:
 if __name__ == '__main__':
     n_gram_lm = NgramLanguageModel()
     n_gram_lm.run()
-# og_unigram_counter = unigram_counter
-
-
-# print(unigram_counter)
-# unigram_probabilities = {key: value / len(vocab) for key, value in unigram_counter.items()}
-# print(unigram_probabilities)
-# Might have to remove special characters from the words
-# Start and end token
-# Vocab size = count of unique tokens
-# create counter dict to keep track of token count
-# another counter dict for bigram token count
-
-# for bigram probabilities, offset the tokens and combine to make bigram pairs into a list of lists
-
-
-
-# df["bigrams"] = df.apply(lambda x: create_bigram_pairs(x), axis=1)
-# print(df)
-# bigram_vocab = [item for sublist in df['bigrams'] for item in sublist]
-# default_word = "<UNK>"
-# bigram_vocab = [(default_word if og_unigram_counter[word1] <= threshold else word1,
-#                        default_word if og_unigram_counter[word2] <= threshold else word2)
-#                       for word1, word2 in bigram_vocab]
-#
-#
-# # print(bigram_vocab)
-# bigram_counter = Counter(bigram_vocab)
-
-# threshold = 1
-# bigram_counter["<UNK>"] = 0
-#
-# for key, value in bigram_counter.items():
-#     if value <= threshold and key != "<UNK>":
-#         bigram_counter[key] = 0
-#         bigram_counter["<UNK>"] += 1
-
-# print(bigram_counter.get(('I', 'booked')))
-# bigram_counter = Counter({k: v for k, v in bigram_counter.items() if v != 0})
-
-# bigram_probabilities = {key: value / (unigram_counter[key[0]] if key in unigram_counter.keys() else unigram_counter["<UNK>"]) for key, value in bigram_counter.items() }
-# print(bigram_probabilities)
-
-# add-k smoothing
-# k = 0.09 # bigram
-# # k = 100000 # unigram
-# add_k_bigram_probs = {key: (value + k) / (unigram_counter[key[0]] + k * len(vocab))
-#                       for key, value in bigram_counter.items()}
-# print(add_k_bigram_probs.get(('I', 'booked')))
-# print(len(unigram_counter.keys()))
-# print(len(unigram_counter))
-#
-# # TODO: generalize for n-grams where n is an input parameter
-# # TODO: implement add-k and kneser kney(best for higher order n-grams), Witten-Bell best for unigrams and bigrams
-# # TODO: implement perplexity calculation
-# # TODO: implement an actual next-word predictor using 6/7 grams and kneser kney smoothing
-#
-# # validation set
-# with open('A1_DATASET/val.txt', 'r') as file:
-#     lines = file.readlines()
-#
-# # Create a DataFrame from the list of lines
-# val_df = pd.DataFrame(lines, columns=['review'])
-#
-# # Optionally, strip any extra whitespace or newline characters
-# val_df['review'] = val_df['review'].str.strip()
-# df["review"] = df["review"].apply(lambda x: x.lower())
-# df["review"] = df["review"].apply(lambda x: "<s> " + x + " </s>")
-#
-# val_df["tokens"] = val_df["review"].apply(lambda x: x.split(" "))
-# val_vocab = [item for sublist in df['tokens'] for item in sublist]
-# val_df["bigrams"] = val_df.apply(lambda x: create_bigram_pairs(x), axis=1)
-# # print(printdf)
-# val_bigram_vocab = [item for sublist in val_df['bigrams'] for item in sublist]
-# # print(val_bigram_vocab)
-# vocab_size = len(set(unigram_counter.keys()))
-# val_bigram_probs = {item: ((bigram_counter[item]) + k) /
-#                           ((unigram_counter[item[0]] if item[0] in unigram_counter.keys() else unigram_counter["<UNK>"])
-#                            + k * vocab_size) for item in val_bigram_vocab}
-# # val_bigram_probs = {item: (bigram_counter[item]) / (unigram_counter[item[0]]) for item in val_bigram_vocab}
-# print("THIS", len(vocab))
-# print()
-# # print(vocab)
-# val_unigram_counter = Counter(val_vocab)
-# val_unigram_probs = {key: ((unigram_counter[key] if key in unigram_counter.keys() else unigram_counter["<UNK>"]) + k) / (sum(unigram_counter.values()) + k * vocab_size) for key in val_unigram_counter.keys()}
-#
-#
-#
-# # print(val_vocab)
-# print(evaluate_perplexity(val_unigram_probs, len(set(val_vocab))))
-# print(evaluate_perplexity(val_bigram_probs, len(set(val_bigram_vocab))))
