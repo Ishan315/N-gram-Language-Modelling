@@ -93,7 +93,7 @@ def validate_model(val_df, bigram_counter, unigram_counter, vocab_size, k=0.09):
 # Main function to process the training data
 def main():
     # 1. Preprocessing
-    df = preprocess_text('A1_DATASET/train.txt')
+    df = preprocess_text('../A1_DATASET/train.txt')
     df["bigrams"] = df.apply(lambda x: create_bigram_pairs(x), axis=1)
 
     # 2. Vocabulary creation
@@ -106,7 +106,7 @@ def main():
     bigram_probs = calculate_bigram_probs(bigram_counter, unigram_counter, vocab_size)
 
     # Validation on validation set
-    val_df = preprocess_text('A1_DATASET/val.txt')
+    val_df = preprocess_text('../A1_DATASET/val.txt')
     val_df["bigrams"] = val_df.apply(lambda x: create_bigram_pairs(x), axis=1)
     unigram_perplexity, bigram_perplexity = validate_model(val_df, bigram_counter, unigram_counter, vocab_size)
 
