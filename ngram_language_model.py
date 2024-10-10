@@ -1,15 +1,14 @@
 import numpy as np
 import pandas as pd
-import re
 from collections import Counter
 
 
 class NgramLanguageModel:
     def __init__(self):
         self.enable_thresholding = True
-        self.enable_smoothing = False
-        self.rare_word_count_threshold = 1
-        self.smoothing_k = 1
+        self.enable_smoothing = True
+        self.rare_word_count_threshold = 10
+        self.smoothing_k = 0.001
 
     def preprocess_text(self, path):
         """
@@ -134,6 +133,10 @@ class NgramLanguageModel:
         # print(train_vocab_size)
         test_vocab_size = len(test_unigram_counter.keys())
         # print(test_vocab_size)
+        print("Val Vocabulary Size: {}".format(test_vocab_size))
+        print("Val Unigram Counter count: {}".format(sum(test_unigram_counter.values())))
+        print("Val Bigram Counter Size: {}".format(len(test_bigram_counter.keys())))
+        print("Val Bigram Counter count: {}".format(sum(test_bigram_counter.values())))
 
         if self.enable_smoothing:
             # Unigram
