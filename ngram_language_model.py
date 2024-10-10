@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
+import re
 from collections import Counter
 
 
 class NgramLanguageModel:
     def __init__(self):
-        self.enable_thresholding = False
-        self.enable_smoothing = True
+        self.enable_thresholding = True
+        self.enable_smoothing = False
         self.rare_word_count_threshold = 1
         self.smoothing_k = 1
 
@@ -43,24 +44,34 @@ class NgramLanguageModel:
         return df  # Return the DataFrame with processed text
 
     def preprocess_rare_words_unigram(self, unigram_counter):
+        """
+        Replaces rare words in a unigram counter with a special token <UNK> (unknown).
+
+        Args:
+        - unigram_counter (Counter): A Counter object where keys are unigrams (words) and values are their frequencies.
+
+        Returns:
+        - Counter: A modified unigram counter where rare words have been replaced with <UNK> and removed.
+        """
+
+        # Initialize the count for the <UNK> token in the unigram counter
         unigram_counter["<UNK>"] = 0
 
+        # Iterate through the unigrams and their counts
         for key, value in unigram_counter.items():
+            # If the count of the unigram is below the rare_word_count_threshold and it's not <UNK>
             if value <= self.rare_word_count_threshold and key != "<UNK>":
+                # Set the unigram count to 0 (effectively removing it)
                 unigram_counter[key] = 0
+                # Increment the count of <UNK> by the frequency of the rare word
                 unigram_counter["<UNK>"] += 1
 
+        # Create a new Counter that only includes unigrams with non-zero counts
         processed_unigram_counter = Counter({k: v for k, v in unigram_counter.items() if v != 0})
 
         return processed_unigram_counter
 
     def preprocess_rare_words_bigram(self, bigram_counter, unigram_counter):
-        default_word = "<UNK>"
-        # bigram_vocab = [(default_word if unigram_counter[word1] <= threshold else word1,
-        #                  default_word if unigram_counter[word2] <= threshold else word2)
-        #                 for word1, word2 in bigram_tokens]
-
-
         bigram_counter["<UNK>"] = 0
 
         for key, value in bigram_counter.items():
@@ -68,15 +79,13 @@ class NgramLanguageModel:
                 bigram_counter[key] = 0
                 bigram_counter["<UNK>"] += 1
 
-        processed_bigram_counter = Counter({k: v for k, v in unigram_counter.items() if v != 0})
+        processed_bigram_counter = Counter({k: v for k, v in bigram_counter.items() if v != 0})
 
         return processed_bigram_counter
 
     def create_bigram_pairs(self, record):
         og_tokens = record["tokens"]
-        offset_tokens = (record["tokens"][1:]
-            # + ["<bigram_end>"]
-            )
+        offset_tokens = record["tokens"][1:]
         combined_tuples = list(zip(og_tokens, offset_tokens))
         return combined_tuples
 
@@ -102,9 +111,14 @@ class NgramLanguageModel:
         train_df = self.preprocess_text(train_path)
         train_unigram_counter, train_bigram_counter = self.create_counters(train_df)
         train_vocab_size = len(train_unigram_counter.keys())
+        print("Train Vocabulary Size: {}".format(train_vocab_size))
+        print("Train Unigram Counter count: {}".format(sum(train_unigram_counter.values())))
+        print("Train Bigram Counter Size: {}".format(len(train_bigram_counter.keys())))
+        print("Train Bigram Counter count: {}".format(sum(train_bigram_counter.values())))
 
         train_unigram_probabilities = {key: value / sum(train_unigram_counter.values()) for key, value in train_unigram_counter.items()}
-        train_bigram_probabilities = {key: value / (train_unigram_counter[key[0]])
+        train_bigram_probabilities = {key: (value / train_unigram_counter[key[0]]
+                                            ) if train_unigram_counter[key[0]] != 0 else 1e-6
                               for key, value in train_bigram_counter.items()}
 
         train_unigram_perplexity = self.evaluate_perplexity(train_unigram_probabilities, train_vocab_size)
